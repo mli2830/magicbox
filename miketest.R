@@ -1,8 +1,8 @@
 library(R2jags)
 
 
-simdat <- function(seed=1099,beta=0.5,gamma=0.5,s0=490,i0=10,t0=1,
-                       tot.t=20,dt=1,N=500,Pc=0.5) {
+simdat <- function(seed=1099,beta=0.5,gamma=0.5,s0=49,i0=1,t0=1,
+                       tot.t=20,dt=1,N=50,Pc=0.5) {
   if (!is.null(seed)) set.seed(seed)
   tvec <- seq(1,tot.t,by=dt)
   n <- length(tvec)
@@ -30,14 +30,14 @@ simdat <- function(seed=1099,beta=0.5,gamma=0.5,s0=490,i0=10,t0=1,
   cbind(tvec,S,I,Iobs)
 }
 
-sirdat <- simdat(seed=13011,tot.t=20,beta=0.4,gamma=0.4,Pc=0.3)
+sirdat <- simdat(seed=13011,tot.t=20,beta=0.6,gamma=0.3,Pc=0.5)
 
 plot(Iobs~tvec,data=sirdat)
 
 
 parameters <- c("beta","gamma","Pc")
 
-jagsdata <- list(o=sirdat[,4], dt=1,M=nrow(sirdat),s0=480, i0=20, N=500)
+jagsdata <- list(o=sirdat[,4], dt=1,M=nrow(sirdat),s0=48, i0=2, N=50)
 
 jags.sir.model <- function() {
     ## initial values
@@ -52,6 +52,9 @@ jags.sir.model <- function() {
     for (i in 2:M) {
       S[i] <- S[i-1] - inf[i-1]
       I[i] <- I[i-1] - rec[i-1] + inf[i-1]
+      if (I[i] < o[i]) {
+        I[i] <- o[i]
+      }
       Pi[i] <- 1 - exp(-beta*I[i]*dt/N)
       inf[i] ~ dbin(Pi[i],S[i])
       rec[i] ~ dbin(Pr,I[i])
@@ -60,17 +63,19 @@ jags.sir.model <- function() {
     ## aux variables
     
     ## priors
-    beta ~ dbeta(1,1)
-    gamma ~ dbeta(1,1)
-    Pc ~ dbeta(1,1)
+    beta ~ dunif(0,1)
+    gamma ~ dunif(0,1)
+    Pc ~ dunif(0,1)
 }
 
-inits <- list(list(beta=0.8,gamma=0.4,Pc=0.5))
+inits <- list(list(beta=0.6,gamma=0.3,Pc=0.5))
 
 jagsdata$o
 
 j1 <- jags(data=jagsdata,inits, param=parameters, model.file = jags.sir.model,   
            n.chains=length(inits), n.iter=15000, n.burnin=5000, n.thin=37)
+
+
 
 j1
 
